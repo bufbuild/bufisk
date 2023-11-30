@@ -5,10 +5,14 @@ on:
       version:
         type: string
         description: The released version without 'v'. For example, 1.0.0.
+  # TODO: delete
+  push:
+    branches: [osun/add-release-workflow]
 permissions:
   contents: write
 env:
-  VERSION: ${{ github.event.inputs.version }}
+  # TODO: remove 0.1.0
+  VERSION: ${{ github.event.inputs.version || '0.1.0' }}
 jobs:
   draft_release:
     runs-on: ubuntu-latest
