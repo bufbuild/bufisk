@@ -69,6 +69,10 @@ checkgenerate:
 	@# Used in CI to verify that `make generate` doesn't produce a diff.
 	test -z "$$(git status --porcelain | tee /dev/stderr)"
 
+.PHONY: release
+release: $(BIN)/minisign ## Generate release assets
+	DOCKER_IMAGE=golang:1.21-bullseye bash scripts/release.bash
+
 $(BIN)/license-header: Makefile
 	@mkdir -p $(@D)
 	go install github.com/bufbuild/buf/private/pkg/licenseheader/cmd/license-header@v1.28.1
@@ -76,3 +80,7 @@ $(BIN)/license-header: Makefile
 $(BIN)/golangci-lint: Makefile
 	@mkdir -p $(@D)
 	go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.55.2
+
+$(BIN)/minisign: Makefile
+	@mkdir -p $(@D)
+	go install aead.dev/minisign/cmd/minisign@v0.2.1
