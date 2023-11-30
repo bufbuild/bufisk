@@ -1,0 +1,6 @@
+/.tmp/
+/bufisk
+*.pprof
+*.svg
+cover.out
+bufisk.test
