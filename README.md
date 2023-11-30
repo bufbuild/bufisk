@@ -33,7 +33,7 @@ The cache directory specified by `${BUF_CACHE_DIR}`. If `${BUF_CACHE_DIR}` is no
 (as it usually is not), the cache directory defaults to:
 
 - Linux, Darwin: `${XDG_CACHE_HOME}/bufisk`, and if `${XDG_CACHE_HOME}` is not set, `${HOME}/.cache/bufisk`.
-- Windows: "%LocalAppData%\bufisk".
+- Windows: `%LocalAppData%\bufisk`.
 
 ## Status: Alpha
 
