@@ -29,7 +29,7 @@ Bufisk downloads releases to a cache directory. In most Unix-like cases, this wi
 
 The full logic:
 
-The cache directory specified by `${BUF_CACHE_DIR}`. If `${BUF_CACHE_DIR}` is not set
+The cache directory specified by `${BUFISK_CACHE_DIR}`. If `${BUFISK_CACHE_DIR}` is not set
 (as it usually is not), the cache directory defaults to:
 
 - Linux, Darwin: `${XDG_CACHE_HOME}/bufisk`, and if `${XDG_CACHE_HOME}` is not set, `${HOME}/.cache/bufisk`.
