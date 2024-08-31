@@ -20,8 +20,10 @@ linters-settings:
 linters:
   enable-all: true
   disable:
+    - copyloopvar       # only valid for go v1.22 and above
     - cyclop            # covered by gocyclo
     - depguard          # unnecessary for small libraries
+    - exportloopref     # deprecated in golangci v1.60.2
     - execinquery       # deprecated in golangci v1.58 
     - funlen            # rely on code review to limit function length
     - gochecknoglobals  # we have very limited globals in bufisk
@@ -31,6 +33,7 @@ linters:
     - gomnd             # deprecated in golangci v1.58 in favor of mnd
     - mnd               # some unnamed constants are okay
     - inamedparam       # convention is not followed
+    - intrange          # only valid for go v1.22 and above
     - ireturn           # "accept interfaces, return structs" isn't ironclad
     - lll               # don't want hard limits for line length
     - maintidx          # covered by gocyclo
