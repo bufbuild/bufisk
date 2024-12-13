@@ -146,11 +146,11 @@ func downloadBufToFilePath(ctx context.Context, bufVersion string, bufFilePath s
 	if err != nil {
 		return fmt.Errorf("could not download buf (are you sure %q is a valid release version?): %w", bufVersion, err)
 	}
-	// We could return the temporary *os.File from downloadTemp but oh well.
-	bufFileData, err := os.ReadFile(tempFilePath)
-	if err != nil {
-		return err
-	}
+	defer func() {
+		if err := os.Remove(tempFilePath); err != nil && retErr == nil {
+			retErr = fmt.Errorf("failed to remove source file %q: %w", tempFilePath, err)
+		}
+	}()
 	sha256TxtData, err := downloadData(ctx, getFileURL(bufVersion, "sha256.txt"))
 	if err != nil {
 		return err
@@ -166,18 +166,37 @@ func downloadBufToFilePath(ctx context.Context, bufVersion string, bufFilePath s
 	if err != nil {
 		return err
 	}
-	hash := sha256.New()
-	if _, err := hash.Write(bufFileData); err != nil {
-		return err
+	sha256Hex, err := hashFile(tempFilePath)
+	if err != nil {
+		return fmt.Errorf("could not hash %s: %w", tempFilePath, err)
 	}
-	sha256Hex := hex.EncodeToString(hash.Sum(nil))
 	if sha256Hex != sha256ExpectedHex {
 		return fmt.Errorf("sha256 mismatch for %s: expected %q got %q", fileName, sha256Hex, sha256ExpectedHex)
 	}
-	if err := os.Chmod(tempFilePath, 0700); err != nil {
+	if err := copyFile(tempFilePath, bufFilePath); err != nil {
 		return err
 	}
-	return moveFileToPath(tempFilePath, bufFilePath)
+	if err := os.Chmod(bufFilePath, 0700); err != nil {
+		return err
+	}
+	return nil
+}
+
+func hashFile(filePath string) (hashStr string, retErr error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			retErr = err
+		}
+	}()
+	hash := sha256.New()
+	if _, err := io.Copy(hash, file); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 func verifySha256TxtData(sha256TxtData []byte, sha256TxtMinisigData []byte) error {
@@ -267,12 +286,32 @@ func download(ctx context.Context, url string, processResponseBody func(io.Reade
 	return processResponseBody(response.Body)
 }
 
-func moveFileToPath(fromFilePath string, toFilePath string) error {
+func copyFile(fromFilePath string, toFilePath string) (retErr error) {
 	if err := os.MkdirAll(filepath.Dir(toFilePath), 0700); err != nil {
 		return err
 	}
-	// This will replace any other file atomically.
-	return os.Rename(fromFilePath, toFilePath)
+	inputFile, err := os.Open(fromFilePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := inputFile.Close(); err != nil && retErr == nil {
+			retErr = err
+		}
+	}()
+	outputFile, err := os.Create(toFilePath)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := outputFile.Close(); err != nil && retErr == nil {
+			retErr = err
+		}
+	}()
+	if _, err := io.Copy(outputFile, inputFile); err != nil {
+		return err
+	}
+	return nil
 }
 
 func getFileURL(bufVersion string, fileName string) string {
