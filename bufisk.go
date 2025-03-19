@@ -152,6 +152,7 @@ func downloadBufToFilePath(ctx context.Context, bufVersion string, bufFilePath s
 			retErr = fmt.Errorf("failed to cleanup temp file %q: %w", tempFilePath, err)
 		}
 	}()
+	// We could return the temporary *os.File from downloadTemp but oh well.
 	bufFileData, err := os.ReadFile(tempFilePath)
 	if err != nil {
 		return err
