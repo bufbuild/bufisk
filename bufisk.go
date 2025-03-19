@@ -276,7 +276,7 @@ func moveFileToPath(fromFilePath string, toFilePath string) error {
 	if err := os.MkdirAll(filepath.Dir(toFilePath), 0700); err != nil {
 		return err
 	}
-	// Try to use os.Rename if possible, but it work across devices.
+	// Try to use os.Rename if possible, but it doesn't work across devices.
 	// This will replace any other file atomically.
 	if err := os.Rename(fromFilePath, toFilePath); err == nil {
 		return nil
