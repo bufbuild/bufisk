@@ -147,10 +147,15 @@ func downloadBufToFilePath(ctx context.Context, bufVersion string, bufFilePath s
 		return fmt.Errorf("could not download buf (are you sure %q is a valid release version?): %w", bufVersion, err)
 	}
 	defer func() {
-		if err := os.Remove(tempFilePath); err != nil && retErr == nil {
-			retErr = fmt.Errorf("failed to remove source file %q: %w", tempFilePath, err)
+		// Cleanup temp file, if it exists.
+		if err := os.Remove(tempFilePath); err != nil && !errors.Is(err, os.ErrNotExist) && retErr == nil {
+			retErr = fmt.Errorf("failed to cleanup temp file %q: %w", tempFilePath, err)
 		}
 	}()
+	bufFileData, err := os.ReadFile(tempFilePath)
+	if err != nil {
+		return err
+	}
 	sha256TxtData, err := downloadData(ctx, getFileURL(bufVersion, "sha256.txt"))
 	if err != nil {
 		return err
@@ -166,37 +171,18 @@ func downloadBufToFilePath(ctx context.Context, bufVersion string, bufFilePath s
 	if err != nil {
 		return err
 	}
-	sha256Hex, err := hashFile(tempFilePath)
-	if err != nil {
-		return fmt.Errorf("could not hash %s: %w", tempFilePath, err)
+	hash := sha256.New()
+	if _, err := hash.Write(bufFileData); err != nil {
+		return err
 	}
+	sha256Hex := hex.EncodeToString(hash.Sum(nil))
 	if sha256Hex != sha256ExpectedHex {
 		return fmt.Errorf("sha256 mismatch for %s: expected %q got %q", fileName, sha256Hex, sha256ExpectedHex)
 	}
-	if err := copyFile(tempFilePath, bufFilePath); err != nil {
+	if err := os.Chmod(tempFilePath, 0700); err != nil {
 		return err
 	}
-	if err := os.Chmod(bufFilePath, 0700); err != nil {
-		return err
-	}
-	return nil
-}
-
-func hashFile(filePath string) (hashStr string, retErr error) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			retErr = err
-		}
-	}()
-	hash := sha256.New()
-	if _, err := io.Copy(hash, file); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(hash.Sum(nil)), nil
+	return moveFileToPath(tempFilePath, bufFilePath)
 }
 
 func verifySha256TxtData(sha256TxtData []byte, sha256TxtMinisigData []byte) error {
@@ -286,29 +272,45 @@ func download(ctx context.Context, url string, processResponseBody func(io.Reade
 	return processResponseBody(response.Body)
 }
 
+func moveFileToPath(fromFilePath string, toFilePath string) error {
+	if err := os.MkdirAll(filepath.Dir(toFilePath), 0700); err != nil {
+		return err
+	}
+	// Try to use os.Rename if possible, but it work across devices.
+	// This will replace any other file atomically.
+	if err := os.Rename(fromFilePath, toFilePath); err == nil {
+		return nil
+	}
+	// Otherwise, copy and remove.
+	if err := copyFile(fromFilePath, toFilePath); err != nil {
+		return err
+	}
+	return os.Remove(fromFilePath)
+}
+
 func copyFile(fromFilePath string, toFilePath string) (retErr error) {
 	if err := os.MkdirAll(filepath.Dir(toFilePath), 0700); err != nil {
 		return err
 	}
-	inputFile, err := os.Open(fromFilePath)
+	fromFile, err := os.Open(fromFilePath)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := inputFile.Close(); err != nil && retErr == nil {
+		if err := fromFile.Close(); err != nil && retErr == nil {
 			retErr = err
 		}
 	}()
-	outputFile, err := os.Create(toFilePath)
+	toFile, err := os.Create(toFilePath)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		if err := outputFile.Close(); err != nil && retErr == nil {
+		if err := toFile.Close(); err != nil && retErr == nil {
 			retErr = err
 		}
 	}()
-	if _, err := io.Copy(outputFile, inputFile); err != nil {
+	if _, err := io.Copy(toFile, fromFile); err != nil {
 		return err
 	}
 	return nil
