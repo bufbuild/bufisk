@@ -282,13 +282,13 @@ func moveFileToPath(fromFilePath string, toFilePath string) error {
 		return nil
 	}
 	// Otherwise, copy and remove.
-	if err := copyFile(fromFilePath, toFilePath); err != nil {
+	if err := copyFileToPath(fromFilePath, toFilePath); err != nil {
 		return err
 	}
 	return os.Remove(fromFilePath)
 }
 
-func copyFile(fromFilePath string, toFilePath string) (retErr error) {
+func copyFileToPath(fromFilePath string, toFilePath string) (retErr error) {
 	if err := os.MkdirAll(filepath.Dir(toFilePath), 0700); err != nil {
 		return err
 	}
